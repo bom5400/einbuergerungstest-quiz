@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Einbürgerungstest Quiz</title>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --card: #ffffff;
+      --text: #1d2330;
+      --muted: #5f6b7a;
+      --border: #d9dee5;
+      --accent: #d52b1e;
+      --accent-text: #ffffff;
+      --ok: #1f8a4c;
+      --ok-bg: #e5f5ec;
+      --bad: #c0392b;
+      --bad-bg: #fbe9e7;
+      --chip: #eef0f4;
+      --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.05);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #14171c; --card: #1d2128; --text: #e7eaef; --muted: #9aa4b2; --border: #333a45;
+        --accent: #e8473b; --ok: #4cc07e; --ok-bg: #173323; --bad: #f0786b; --bad-bg: #3a1d1a;
+        --chip: #2a303a; --shadow: none;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #14171c; --card: #1d2128; --text: #e7eaef; --muted: #9aa4b2; --border: #333a45;
+      --accent: #e8473b; --ok: #4cc07e; --ok-bg: #173323; --bad: #f0786b; --bad-bg: #3a1d1a;
+      --chip: #2a303a; --shadow: none;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .logo { width: 40px; height: 40px; flex: none; }
+    h1 { font-size: 1.35rem; margin: 0; line-height: 1.2; }
+    .sub { color: var(--muted); font-size: .9rem; }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px;
+    }
+    h2 { font-size: 1.05rem; margin: 0 0 12px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .stat { background: var(--chip); border-radius: 10px; padding: 10px 12px; }
+    .stat b { display: block; font-size: 1.4rem; line-height: 1.2; }
+    .stat span { color: var(--muted); font-size: .82rem; }
+    label.check { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; }
+    label.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+    label.check .count { margin-left: auto; color: var(--muted); font-size: .85rem; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    input[type=number] {
+      width: 96px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--card); color: var(--text); font: inherit;
+    }
+    input[type=range] { width: 100%; accent-color: var(--accent); margin: 12px 0 4px; }
+    input[type=search] {
+      width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--card); color: var(--text); font: inherit; margin-bottom: 10px;
+    }
+    button {
+      font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--card); color: var(--text); padding: 8px 14px;
+    }
+    button:hover:not(:disabled) { border-color: var(--muted); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+    button.primary:hover:not(:disabled) { filter: brightness(1.08); border-color: var(--accent); }
+    button.small { padding: 4px 10px; font-size: .85rem; border-radius: 8px; }
+    button.chip { border-radius: 999px; padding: 4px 12px; font-size: .9rem; }
+    button.chip.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+    button.link { border: none; background: none; color: var(--muted); text-decoration: underline; padding: 4px; }
+    .big-btn { width: 100%; padding: 14px; font-size: 1.05rem; }
+    .muted { color: var(--muted); }
+    .hint { color: var(--muted); font-size: .85rem; margin-top: 6px; }
+    .hidden { display: none !important; }
+
+    /* Quiz */
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; font-size: .9rem; }
+    .progress { height: 6px; background: var(--chip); border-radius: 99px; overflow: hidden; margin-bottom: 16px; }
+    .progress > div { height: 100%; background: var(--accent); width: 0; transition: width .25s; }
+    .badge { display: inline-block; background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: .8rem; color: var(--muted); }
+    .qtext { font-size: 1.2rem; font-weight: 600; margin: 10px 0 16px; }
+    .qimg { display: block; max-width: 100%; max-height: 320px; margin: 0 auto 16px; border-radius: 8px; background: #fff; }
+    .answers { display: grid; gap: 10px; }
+    .answer {
+      display: flex; gap: 12px; align-items: flex-start; text-align: left; width: 100%;
+      padding: 12px 14px; border-radius: 12px; border: 2px solid var(--border); background: var(--card);
+    }
+    .answer .letter {
+      flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+      background: var(--chip); font-weight: 700; font-size: .9rem;
+    }
+    .answer.correct { border-color: var(--ok); background: var(--ok-bg); }
+    .answer.correct .letter { background: var(--ok); color: #fff; }
+    .answer.wrong { border-color: var(--bad); background: var(--bad-bg); }
+    .answer.wrong .letter { background: var(--bad); color: #fff; }
+    .answers.locked .answer { cursor: default; }
+    .feedback { margin-top: 14px; font-weight: 600; min-height: 1.5em; }
+    .feedback.ok { color: var(--ok); }
+    .feedback.bad { color: var(--bad); }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; margin-top: 16px; }
+    .excl-on { border-color: var(--accent) !important; color: var(--accent); }
+
+    /* Results */
+    .score { text-align: center; padding: 8px 0 4px; }
+    .score .num { font-size: 3rem; font-weight: 800; line-height: 1.1; }
+    .score .pct { font-size: 1.1rem; color: var(--muted); }
+    .bar { display: flex; height: 12px; border-radius: 99px; overflow: hidden; background: var(--chip); margin: 16px 0 6px; }
+    .bar .g { background: var(--ok); }
+    .bar .r { background: var(--bad); }
+    .review { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+    .review li { border: 1px solid var(--border); border-left: 5px solid var(--ok); border-radius: 10px; padding: 10px 12px; }
+    .review li.bad { border-left-color: var(--bad); }
+    .review .q { font-weight: 600; margin-bottom: 4px; }
+    .review .a { font-size: .9rem; }
+    .review .a .ok { color: var(--ok); }
+    .review .a .bad { color: var(--bad); text-decoration: line-through; }
+    .review .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; }
+
+    .exlist { list-style: none; padding: 0; margin: 0; max-height: 360px; overflow: auto; }
+    .exlist li { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--border); font-size: .9rem; }
+    .exlist li span { flex: 1; }
+    kbd { font: .75rem ui-monospace, monospace; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+
+    @media (max-width: 520px) {
+      .stats { grid-template-columns: 1fr 1fr 1fr; }
+      .stat b { font-size: 1.15rem; }
+      .qtext { font-size: 1.08rem; }
+      .actions button { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#d52b1e"/><path d="M13 6h6v7h7v6h-7v7h-6v-7H6v-6h7z" fill="#fff"/></svg>
+    <div>
+      <h1>Einbürgerungstest Aargau</h1>
+      <div class="sub">Staatsbürgerlicher Test · Fragenkatalog gültig ab 29.09.2025</div>
+    </div>
+  </header>
+
+  <!-- START -->
+  <section id="screen-start">
+    <div class="card">
+      <div class="stats">
+        <div class="stat"><b id="st-total">0</b><span>Fragen gesamt</span></div>
+        <div class="stat"><b id="st-excluded">0</b><span>aussortiert</span></div>
+        <div class="stat"><b id="st-available">0</b><span>verfügbar</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Themenbereiche</h2>
+      <div id="categories"></div>
+    </div>
+
+    <div class="card">
+      <h2>Anzahl Fragen in dieser Runde</h2>
+      <div class="row">
+        <input type="number" id="count" min="1" value="20" aria-label="Anzahl Fragen">
+        <span class="muted">von <span id="count-max">0</span></span>
+      </div>
+      <input type="range" id="count-range" min="1" value="20" aria-label="Anzahl Fragen">
+      <div class="row" id="presets"></div>
+      <label class="check" style="margin-top:10px">
+        <input type="checkbox" id="shuffle-answers" checked>
+        Antwortreihenfolge ebenfalls mischen
+      </label>
+    </div>
+
+    <button class="primary big-btn" id="btn-start">Spiel starten</button>
+
+    <div class="card" style="margin-top:16px">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">Aussortierte Fragen</h2>
+        <button class="small" id="btn-toggle-excluded">Anzeigen</button>
+      </div>
+      <p class="hint">Fragen, die du als „zu einfach“ markierst, werden in künftigen Runden nicht mehr gestellt. Die Auswahl wird in diesem Browser gespeichert.</p>
+      <div id="excluded-panel" class="hidden">
+        <input type="search" id="excluded-search" placeholder="Aussortierte Fragen durchsuchen …">
+        <ul class="exlist" id="excluded-list"></ul>
+        <div class="row" style="margin-top:10px">
+          <button class="small" id="btn-restore-all">Alle wieder aufnehmen</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="screen-quiz" class="hidden">
+    <div class="topbar">
+      <span id="q-progress">Frage 1 / 10</span>
+      <span id="q-score" class="muted">0 richtig</span>
+    </div>
+    <div class="progress"><div id="q-bar"></div></div>
+    <div class="card">
+      <span class="badge" id="q-category"></span>
+      <span class="badge" id="q-code"></span>
+      <div class="qtext" id="q-text"></div>
+      <img class="qimg hidden" id="q-img" alt="Abbildung zur Frage">
+      <div class="answers" id="q-answers"></div>
+      <div class="feedback" id="q-feedback" aria-live="polite"></div>
+      <div class="actions">
+        <button id="btn-exclude" title="Diese Frage in künftigen Runden nicht mehr stellen">Zu einfach – aussortieren</button>
+        <button class="primary" id="btn-next" disabled>Weiter</button>
+      </div>
+    </div>
+    <div class="row" style="justify-content:space-between">
+      <span class="hint">Tastatur: <kbd>1</kbd>–<kbd>4</kbd> bzw. <kbd>A</kbd>–<kbd>D</kbd> antworten, <kbd>Enter</kbd> weiter, <kbd>X</kbd> aussortieren</span>
+      <button class="link" id="btn-quit">Runde beenden</button>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section id="screen-result" class="hidden">
+    <div class="card">
+      <div class="score">
+        <div class="muted">Auswertung</div>
+        <div class="num" id="r-num">0 / 0</div>
+        <div class="pct" id="r-pct"></div>
+      </div>
+      <div class="bar"><div class="g" id="r-bar-g"></div><div class="r" id="r-bar-r"></div></div>
+      <p class="hint" id="r-extra" style="text-align:center"></p>
+      <div class="row" style="justify-content:center; margin-top:12px">
+        <button class="primary" id="btn-again">Neue Runde</button>
+        <button id="btn-retry-wrong">Falsche wiederholen</button>
+        <button id="btn-home">Zur Startseite</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between; margin-bottom:10px">
+        <h2 style="margin:0">Deine Antworten</h2>
+        <div class="row">
+          <button class="chip active" data-filter="all">Alle</button>
+          <button class="chip" data-filter="wrong">Nur falsche</button>
+        </div>
+      </div>
+      <ul class="review" id="r-list"></ul>
+    </div>
+  </section>
+</div>
+
+<script src="questions.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  const QUESTIONS = window.QUIZ_QUESTIONS || [];
+  const BY_ID = new Map(QUESTIONS.map(q => [q.id, q]));
+  const CATEGORIES = [...new Set(QUESTIONS.map(q => q.category))];
+  const LETTERS = ["A", "B", "C", "D", "E", "F"];
+  const STORE_EXCLUDED = "einbuergerungstest-ag.excluded";
+  const STORE_SETTINGS = "einbuergerungstest-ag.settings";
+
+  // ---------- Storage (fails gracefully, e.g. in private mode) ----------
+  function load(key, fallback) {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+    catch (e) { return fallback; }
+  }
+  function save(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ }
+  }
+
+  const excluded = new Set(load(STORE_EXCLUDED, []).filter(id => BY_ID.has(id)));
+  const settings = Object.assign({ count: 20, shuffleAnswers: true, categories: CATEGORIES }, load(STORE_SETTINGS, {}));
+  settings.categories = settings.categories.filter(c => CATEGORIES.includes(c));
+  if (!settings.categories.length) settings.categories = CATEGORIES.slice();
+
+  function persistExcluded() { save(STORE_EXCLUDED, [...excluded]); }
+  function persistSettings() { save(STORE_SETTINGS, settings); }
+
+  // ---------- Helpers ----------
+  const $ = id => document.getElementById(id);
+  function el(tag, props, ...children) {
+    const n = document.createElement(tag);
+    if (props) Object.assign(n, props);
+    for (const c of children) if (c != null) n.append(c);
+    return n;
+  }
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function show(screen) {
+    for (const s of ["start", "quiz", "result"]) $("screen-" + s).classList.toggle("hidden", s !== screen);
+    window.scrollTo(0, 0);
+  }
+  function availablePool() {
+    return QUESTIONS.filter(q => !excluded.has(q.id) && settings.categories.includes(q.category));
+  }
+
+  // ---------- Start screen ----------
+  function renderCategories() {
+    const box = $("categories");
+    box.replaceChildren();
+    for (const cat of CATEGORIES) {
+      const total = QUESTIONS.filter(q => q.category === cat).length;
+      const avail = QUESTIONS.filter(q => q.category === cat && !excluded.has(q.id)).length;
+      const cb = el("input", { type: "checkbox", checked: settings.categories.includes(cat) });
+      cb.addEventListener("change", () => {
+        settings.categories = CATEGORIES.filter(c => c === cat ? cb.checked : settings.categories.includes(c));
+        persistSettings();
+        renderStart();
+      });
+      box.append(el("label", { className: "check" }, cb, cat,
+        el("span", { className: "count", textContent: avail === total ? `${total}` : `${avail} von ${total}` })));
+    }
+  }
+
+  function renderExcludedList() {
+    const list = $("excluded-list");
+    const term = $("excluded-search").value.trim().toLowerCase();
+    list.replaceChildren();
+    const items = QUESTIONS.filter(q => excluded.has(q.id) &&
+      (!term || q.question.toLowerCase().includes(term) || q.id.includes(term)));
+    if (!items.length) {
+      list.append(el("li", null, el("span", { className: "muted",
+        textContent: excluded.size ? "Keine Treffer." : "Noch keine Fragen aussortiert." })));
+    }
+    for (const q of items) {
+      const btn = el("button", { className: "small", textContent: "Wieder aufnehmen" });
+      btn.addEventListener("click", () => { excluded.delete(q.id); persistExcluded(); renderStart(); });
+      list.append(el("li", null, el("span", { textContent: q.question }), btn));
+    }
+    $("btn-restore-all").disabled = !excluded.size;
+  }
+
+  function renderStart() {
+    const pool = availablePool();
+    $("st-total").textContent = QUESTIONS.length;
+    $("st-excluded").textContent = excluded.size;
+    $("st-available").textContent = pool.length;
+
+    const max = pool.length;
+    const count = Math.max(Math.min(settings.count, max), max ? 1 : 0);
+    for (const id of ["count", "count-range"]) {
+      $(id).max = Math.max(max, 1);
+      $(id).value = count;
+      $(id).disabled = !max;
+    }
+    $("count-max").textContent = max;
+
+    const presets = $("presets");
+    presets.replaceChildren();
+    for (const n of [10, 20, 50, 100]) {
+      if (n >= max) continue;
+      const b = el("button", { className: "chip" + (count === n ? " active" : ""), textContent: String(n) });
+      b.addEventListener("click", () => setCount(n));
+      presets.append(b);
+    }
+    if (max) {
+      const all = el("button", { className: "chip" + (count === max ? " active" : ""), textContent: `Alle (${max})` });
+      all.addEventListener("click", () => setCount(max));
+      presets.append(all);
+    }
+
+    $("shuffle-answers").checked = settings.shuffleAnswers;
+    $("btn-start").disabled = !max;
+    $("btn-start").textContent = max ? `Spiel starten (${count} Fragen)` : "Keine Fragen verfügbar";
+    renderCategories();
+    renderExcludedList();
+  }
+
+  function setCount(n) {
+    const max = availablePool().length;
+    n = parseInt(n, 10);
+    if (!Number.isFinite(n)) return;
+    settings.count = Math.max(1, Math.min(n, max));
+    persistSettings();
+    renderStart();
+  }
+
+  $("count").addEventListener("change", e => setCount(e.target.value));
+  $("count-range").addEventListener("input", e => setCount(e.target.value));
+  $("shuffle-answers").addEventListener("change", e => { settings.shuffleAnswers = e.target.checked; persistSettings(); });
+  $("btn-toggle-excluded").addEventListener("click", () => {
+    const panel = $("excluded-panel");
+    panel.classList.toggle("hidden");
+    $("btn-toggle-excluded").textContent = panel.classList.contains("hidden") ? "Anzeigen" : "Ausblenden";
+  });
+  $("excluded-search").addEventListener("input", renderExcludedList);
+  $("btn-restore-all").addEventListener("click", () => {
+    if (!confirm(`Alle ${excluded.size} aussortierten Fragen wieder aufnehmen?`)) return;
+    excluded.clear(); persistExcluded(); renderStart();
+  });
+  $("btn-start").addEventListener("click", () => {
+    const pool = shuffle(availablePool());
+    startRun(pool.slice(0, Math.min(settings.count, pool.length)));
+  });
+
+  // ---------- Quiz ----------
+  let run = null; // { items: [{q, order, chosen}], index }
+
+  function startRun(questions) {
+    if (!questions.length) return;
+    run = {
+      index: 0,
+      items: questions.map(q => {
+        const idx = q.answers.map((_, i) => i);
+        return { q, order: settings.shuffleAnswers ? shuffle(idx) : idx, chosen: null };
+      })
+    };
+    show("quiz");
+    renderQuestion();
+  }
+
+  function correctCount() {
+    return run.items.filter(it => it.chosen !== null && it.q.correct.includes(it.chosen)).length;
+  }
+
+  function renderQuestion() {
+    const it = run.items[run.index];
+    const q = it.q;
+    const n = run.items.length;
+    $("q-progress").textContent = `Frage ${run.index + 1} / ${n}`;
+    $("q-score").textContent = `${correctCount()} richtig`;
+    $("q-bar").style.width = `${(run.index / n) * 100}%`;
+    $("q-category").textContent = q.category;
+    $("q-code").textContent = q.id;
+    $("q-text").textContent = q.question;
+
+    const img = $("q-img");
+    if (q.image) { img.src = q.image; img.classList.remove("hidden"); }
+    else { img.removeAttribute("src"); img.classList.add("hidden"); }
+
+    const box = $("q-answers");
+    box.replaceChildren();
+    box.classList.remove("locked");
+    it.order.forEach((ai, pos) => {
+      const b = el("button", { className: "answer" },
+        el("span", { className: "letter", textContent: LETTERS[pos] }),
+        el("span", { textContent: q.answers[ai] }));
+      b.dataset.ai = ai;
+      b.addEventListener("click", () => answer(ai));
+      box.append(b);
+    });
+
+    $("q-feedback").textContent = "";
+    $("q-feedback").className = "feedback";
+    $("btn-next").disabled = true;
+    $("btn-next").textContent = run.index === n - 1 ? "Auswertung" : "Weiter";
+    renderExcludeBtn();
+  }
+
+  function renderExcludeBtn() {
+    const q = run.items[run.index].q;
+    const on = excluded.has(q.id);
+    const b = $("btn-exclude");
+    b.classList.toggle("excl-on", on);
+    b.textContent = on ? "Aussortiert ✓ (rückgängig)" : "Zu einfach – aussortieren";
+  }
+
+  function answer(ai) {
+    const it = run.items[run.index];
+    if (it.chosen !== null) return;
+    it.chosen = ai;
+    const ok = it.q.correct.includes(ai);
+    const box = $("q-answers");
+    box.classList.add("locked");
+    for (const b of box.children) {
+      const bi = Number(b.dataset.ai);
+      if (it.q.correct.includes(bi)) b.classList.add("correct");
+      else if (bi === ai) b.classList.add("wrong");
+      b.setAttribute("aria-disabled", "true");
+    }
+    const fb = $("q-feedback");
+    if (ok) {
+      fb.textContent = "Richtig!";
+    } else {
+      const pos = it.order.indexOf(it.q.correct[0]);
+      fb.textContent = `Leider falsch – richtig ist ${LETTERS[pos]}.`;
+    }
+    fb.className = "feedback " + (ok ? "ok" : "bad");
+    $("q-score").textContent = `${correctCount()} richtig`;
+    $("btn-next").disabled = false;
+    $("btn-next").focus();
+  }
+
+  function next() {
+    if (run.items[run.index].chosen === null) return;
+    if (run.index < run.items.length - 1) { run.index++; renderQuestion(); }
+    else showResult();
+  }
+
+  function toggleExclude() {
+    const q = run.items[run.index].q;
+    if (excluded.has(q.id)) excluded.delete(q.id); else excluded.add(q.id);
+    persistExcluded();
+    renderExcludeBtn();
+  }
+
+  $("btn-next").addEventListener("click", next);
+  $("btn-exclude").addEventListener("click", toggleExclude);
+  $("btn-quit").addEventListener("click", () => {
+    const answered = run.items.filter(it => it.chosen !== null).length;
+    if (!answered) { if (confirm("Runde abbrechen?")) { run = null; renderStart(); show("start"); } return; }
+    if (confirm("Runde jetzt beenden und die bisher beantworteten Fragen auswerten?")) showResult();
+  });
+
+  document.addEventListener("keydown", e => {
+    if ($("screen-quiz").classList.contains("hidden") || !run) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const it = run.items[run.index];
+    const k = e.key.toUpperCase();
+    let pos = -1;
+    if (/^[1-9]$/.test(k)) pos = Number(k) - 1;
+    else if (LETTERS.includes(k)) pos = LETTERS.indexOf(k);
+    if (pos >= 0 && pos < it.order.length && it.chosen === null) { answer(it.order[pos]); e.preventDefault(); }
+    else if (k === "ENTER" && it.chosen !== null) { next(); e.preventDefault(); }
+    else if (k === "X") { toggleExclude(); e.preventDefault(); }
+  });
+
+  // ---------- Result ----------
+  let resultFilter = "all";
+
+  function showResult() {
+    const answered = run.items.filter(it => it.chosen !== null);
+    run.items = answered;
+    const total = answered.length;
+    const right = correctCount();
+    const pct = total ? Math.round((right / total) * 100) : 0;
+    $("r-num").textContent = `${right} / ${total}`;
+    $("r-pct").textContent = total ? `${pct} % der Fragen richtig beantwortet` : "Keine Frage beantwortet";
+    $("r-bar-g").style.width = total ? `${(right / total) * 100}%` : "0";
+    $("r-bar-r").style.width = total ? `${((total - right) / total) * 100}%` : "0";
+    $("r-extra").textContent = total - right
+      ? `${total - right} falsch beantwortet`
+      : (total ? "Perfekt – alle Fragen richtig!" : "");
+    $("btn-retry-wrong").disabled = right === total;
+    resultFilter = "all";
+    renderReview();
+    show("result");
+  }
+
+  function renderReview() {
+    for (const c of document.querySelectorAll("[data-filter]")) c.classList.toggle("active", c.dataset.filter === resultFilter);
+    const list = $("r-list");
+    list.replaceChildren();
+    for (const it of run.items) {
+      const q = it.q;
+      const ok = q.correct.includes(it.chosen);
+      if (resultFilter === "wrong" && ok) continue;
+      const a = el("div", { className: "a" });
+      if (!ok) a.append(el("div", null, "Deine Antwort: ", el("span", { className: "bad", textContent: q.answers[it.chosen] })));
+      a.append(el("div", null, ok ? "Richtig: " : "Korrekt wäre: ", el("span", { className: "ok", textContent: q.correct.map(i => q.answers[i]).join(", ") })));
+      const btn = el("button", { className: "small" });
+      const paint = () => {
+        const on = excluded.has(q.id);
+        btn.textContent = on ? "Aussortiert ✓" : "Zu einfach – aussortieren";
+        btn.classList.toggle("excl-on", on);
+      };
+      paint();
+      btn.addEventListener("click", () => {
+        if (excluded.has(q.id)) excluded.delete(q.id); else excluded.add(q.id);
+        persistExcluded(); paint();
+      });
+      list.append(el("li", { className: ok ? "" : "bad" },
+        el("div", { className: "q", textContent: q.question }), a,
+        el("div", { className: "meta" }, el("span", { className: "badge", textContent: q.category }), btn)));
+    }
+    if (!list.children.length) list.append(el("li", null, el("span", { className: "muted", textContent: "Keine falschen Antworten – super!" })));
+  }
+
+  for (const c of document.querySelectorAll("[data-filter]")) {
+    c.addEventListener("click", () => { resultFilter = c.dataset.filter; renderReview(); });
+  }
+  $("btn-again").addEventListener("click", () => { renderStart(); $("btn-start").click(); });
+  $("btn-retry-wrong").addEventListener("click", () => {
+    startRun(shuffle(run.items.filter(it => !it.q.correct.includes(it.chosen)).map(it => it.q)));
+  });
+  $("btn-home").addEventListener("click", () => { renderStart(); show("start"); });
+
+  renderStart();
+})();
+</script>
+</body>
+</html>
