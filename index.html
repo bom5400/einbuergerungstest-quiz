@@ -158,7 +158,13 @@
     </div>
 
     <div class="card">
-      <h2>Themenbereiche</h2>
+      <div class="row" style="justify-content:space-between; margin-bottom:6px">
+        <h2 style="margin:0">Themenbereiche</h2>
+        <div class="row">
+          <button class="small" id="btn-cat-all">Alle</button>
+          <button class="small" id="btn-cat-none">Keine</button>
+        </div>
+      </div>
       <div id="categories"></div>
     </div>
 
@@ -183,7 +189,14 @@
         <h2 style="margin:0">Aussortierte Fragen</h2>
         <button class="small" id="btn-toggle-excluded">Anzeigen</button>
       </div>
-      <p class="hint">Fragen, die du als „zu einfach“ markierst, werden in künftigen Runden nicht mehr gestellt. Die Auswahl wird in diesem Browser gespeichert.</p>
+      <p class="hint">Fragen, die du als „zu einfach“ markierst, werden in künftigen Runden nicht mehr gestellt. Die Auswahl wird automatisch in diesem Browser gespeichert und beim nächsten Öffnen wieder eingelesen.</p>
+      <p class="hint" id="storage-status" aria-live="polite"></p>
+      <div class="row" style="margin:8px 0 4px">
+        <button class="small" id="btn-export">Sicherung herunterladen</button>
+        <button class="small" id="btn-import">Sicherung laden</button>
+        <input type="file" id="import-file" accept=".json,application/json" class="hidden">
+      </div>
+      <p class="hint">Löscht dein Browser beim Beenden die Websitedaten (z.&nbsp;B. privates Fenster, Safari, „Cookies beim Beenden löschen“) oder willst du auf einem anderen Gerät weiterlernen, lade die Sicherungsdatei herunter und lies sie dort mit „Sicherung laden“ wieder ein.</p>
       <div id="excluded-panel" class="hidden">
         <input type="search" id="excluded-search" placeholder="Aussortierte Fragen durchsuchen …">
         <ul class="exlist" id="excluded-list"></ul>
@@ -230,9 +243,9 @@
       <div class="bar"><div class="g" id="r-bar-g"></div><div class="r" id="r-bar-r"></div></div>
       <p class="hint" id="r-extra" style="text-align:center"></p>
       <div class="row" style="justify-content:center; margin-top:12px">
-        <button class="primary" id="btn-again">Neue Runde</button>
+        <button class="primary" id="btn-new-round">Neue Runde einrichten</button>
+        <button id="btn-again">Gleiche Einstellungen nochmal</button>
         <button id="btn-retry-wrong">Falsche wiederholen</button>
-        <button id="btn-home">Zur Startseite</button>
       </div>
     </div>
     <div class="card">
@@ -266,15 +279,26 @@
     catch (e) { return fallback; }
   }
   function save(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ }
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (e) { return false; }
   }
+  const storageOk = (() => {
+    try {
+      const k = "einbuergerungstest-ag.test";
+      localStorage.setItem(k, "1");
+      const ok = localStorage.getItem(k) === "1";
+      localStorage.removeItem(k);
+      return ok;
+    } catch (e) { return false; }
+  })();
+  // Ask the browser to keep this site's data when it cleans up storage (no-op where unsupported).
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* ignore */ }
 
   const excluded = new Set(load(STORE_EXCLUDED, []).filter(id => BY_ID.has(id)));
   const settings = Object.assign({ count: 20, shuffleAnswers: true, categories: CATEGORIES }, load(STORE_SETTINGS, {}));
   settings.categories = settings.categories.filter(c => CATEGORIES.includes(c));
   if (!settings.categories.length) settings.categories = CATEGORIES.slice();
 
-  function persistExcluded() { save(STORE_EXCLUDED, [...excluded]); }
+  function persistExcluded() { save(STORE_EXCLUDED, [...excluded]); renderStorageStatus(); }
   function persistSettings() { save(STORE_SETTINGS, settings); }
 
   // ---------- Helpers ----------
@@ -337,6 +361,18 @@
     $("btn-restore-all").disabled = !excluded.size;
   }
 
+  function renderStorageStatus() {
+    const s = $("storage-status");
+    if (!storageOk) {
+      s.textContent = "⚠ Dieser Browser erlaubt keine Speicherung (z. B. privates Fenster). Aussortierte Fragen gehen beim Schliessen verloren – nutze „Sicherung herunterladen“.";
+      s.style.color = "var(--bad)";
+    } else {
+      s.textContent = `✓ ${excluded.size} aussortierte ${excluded.size === 1 ? "Frage" : "Fragen"} im Browser gespeichert.`;
+      s.style.color = "";
+    }
+    $("btn-export").disabled = !excluded.size;
+  }
+
   function renderStart() {
     const pool = availablePool();
     $("st-total").textContent = QUESTIONS.length;
@@ -368,9 +404,11 @@
 
     $("shuffle-answers").checked = settings.shuffleAnswers;
     $("btn-start").disabled = !max;
-    $("btn-start").textContent = max ? `Spiel starten (${count} Fragen)` : "Keine Fragen verfügbar";
+    $("btn-start").textContent = max ? `Spiel starten (${count} Fragen)`
+      : (settings.categories.length ? "Keine Fragen verfügbar" : "Bitte mindestens einen Themenbereich wählen");
     renderCategories();
     renderExcludedList();
+    renderStorageStatus();
   }
 
   function setCount(n) {
@@ -395,6 +433,39 @@
     if (!confirm(`Alle ${excluded.size} aussortierten Fragen wieder aufnehmen?`)) return;
     excluded.clear(); persistExcluded(); renderStart();
   });
+  function setCategories(list) { settings.categories = list; persistSettings(); renderStart(); }
+  $("btn-cat-all").addEventListener("click", () => setCategories(CATEGORIES.slice()));
+  $("btn-cat-none").addEventListener("click", () => setCategories([]));
+
+  $("btn-export").addEventListener("click", () => {
+    const data = { app: "einbuergerungstest-ag", version: 1, exportedAt: new Date().toISOString(), excluded: [...excluded] };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+    const a = el("a", { href: url, download: `einbuergerungstest-aussortiert-${new Date().toISOString().slice(0, 10)}.json` });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  $("btn-import").addEventListener("click", () => $("import-file").click());
+  $("import-file").addEventListener("change", async e => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    let ids;
+    try {
+      const data = JSON.parse(await file.text());
+      ids = Array.isArray(data) ? data : data.excluded;
+      if (!Array.isArray(ids)) throw new Error("format");
+    } catch (err) {
+      alert("Die Datei konnte nicht gelesen werden. Bitte eine mit „Sicherung herunterladen“ erstellte Datei wählen.");
+      return;
+    }
+    const valid = ids.filter(id => BY_ID.has(id));
+    const added = valid.filter(id => !excluded.has(id)).length;
+    valid.forEach(id => excluded.add(id));
+    persistExcluded();
+    renderStart();
+    alert(`${valid.length} aussortierte Fragen in der Sicherung, davon ${added} neu übernommen.`);
+  });
+
   $("btn-start").addEventListener("click", () => {
     const pool = shuffle(availablePool());
     startRun(pool.slice(0, Math.min(settings.count, pool.length)));
@@ -576,11 +647,11 @@
   for (const c of document.querySelectorAll("[data-filter]")) {
     c.addEventListener("click", () => { resultFilter = c.dataset.filter; renderReview(); });
   }
+  $("btn-new-round").addEventListener("click", () => { renderStart(); show("start"); });
   $("btn-again").addEventListener("click", () => { renderStart(); $("btn-start").click(); });
   $("btn-retry-wrong").addEventListener("click", () => {
     startRun(shuffle(run.items.filter(it => !it.q.correct.includes(it.chosen)).map(it => it.q)));
   });
-  $("btn-home").addEventListener("click", () => { renderStart(); show("start"); });
 
   renderStart();
 })();
